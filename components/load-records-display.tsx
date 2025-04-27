@@ -1,51 +1,39 @@
-import { fetchLoadRecords, LoadRecord } from '@/lib/bigquery';
-import { LoadRecordsTableClient } from './load-records-table-client'; // We'll create this next
-import { Suspense } from 'react';
+// components/load-records-display.tsx
+import React from 'react';
+// Import the type definition for the original data structure
+import { LoadRecord } from '@/lib/bigquery';
+// Import the type definition for the serialized data structure
+import { SerializableLoadRecord } from '@/app/page'; // Or wherever it's defined/exported
+// Import the client component that expects serialized data
+import { LoadRecordsTableClient } from './load-records-table-client'; // Adjust path if needed
 
-// Helper component to show loading state
-function LoadingSkeleton() {
-  // You can replace this with a more sophisticated skeleton loader from Shadcn if desired
-  return <div>Loading BigQuery data...</div>;
+interface LoadRecordsDisplayProps {
+  // Assuming this component receives the original data
+  data: LoadRecord[];
+  // Add any other props this component needs
+  isLoading?: boolean;
+  error?: Error | null;
 }
 
-// Helper component to show error state
-function ErrorDisplay({ message }: { message: string }) {
-  return <div className="text-red-600">Error fetching data: {message}</div>;
-}
+export function LoadRecordsDisplay({ data, isLoading, error }: LoadRecordsDisplayProps) {
 
-// The main server component
-export async function LoadRecordsDisplay() {
-  let data: LoadRecord[] = [];
-  let error: string | null = null;
+  // --- TRANSFORMATION STEP ---
+  // Convert the received data (LoadRecord[]) into the format expected by the client component (SerializableLoadRecord[])
+  const serializableData: SerializableLoadRecord[] = data.map(record => ({
+    ...record,
+    load_date: record.load_date.value, // Extract the string value from BigQueryDate
+  }));
+  // --- END TRANSFORMATION ---
 
-  try {
-    // Fetch data directly in the Server Component
-    data = await fetchLoadRecords();
-  } catch (e) {
-    console.error("Failed to load records in Server Component:", e);
-    error = e instanceof Error ? e.message : 'An unknown error occurred';
-  }
-
-  // Render the client component with fetched data or error state
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">BigQuery Load Records</h1>
-      {error ? (
-        <ErrorDisplay message={error} />
-      ) : (
-        // Pass the fetched data to the client component responsible for rendering the table
+      {isLoading && <div>Loading records...</div>}
+      {error && <div className="text-red-500">Error loading data: {error.message}</div>}
+      {!isLoading && !error && (
+        // Pass the *transformed* data to the client component
         // The client component will handle its own internal loading/sorting/filtering states
-        <LoadRecordsTableClient initialData={data} />
+        <LoadRecordsTableClient initialData={serializableData} /> // <-- Pass the transformed data
       )}
     </div>
-  );
-}
-
-// Optional: Wrap the display component in Suspense for page-level loading
-export function LoadRecordsDisplayWithSuspense() {
-  return (
-    <Suspense fallback={<LoadingSkeleton />}>
-      <LoadRecordsDisplay />
-    </Suspense>
   );
 }
