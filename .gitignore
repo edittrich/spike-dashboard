@@ -1,5 +1,7 @@
 /node_modules/
+/.idea/
 /.next/
+/.vercel/
 
 next-env.d.ts
 sa-data-dashboard-ds5a-a16d1e181f8e.json
